@@ -13,7 +13,7 @@
 
 
 int main() {
-  int result = -1;
+  int process_result = -1;
 
   try {
     std::cerr << "[enter] shell client" << std::endl;
@@ -26,76 +26,38 @@ int main() {
     auto desktop_shell = global_bind<weston_desktop_shell>(display.get(), 1);
 
     auto surface       = attach_unique(wl_compositor_create_surface(compositor.get()));
+    auto window        = attach_unique(wl_egl_window_create(surface.get(), 1920, 1080),
+				       wl_egl_window_destroy);
 
-    wl_seat_listener seat_listener = {
-      .capabilities = [](void*, wl_seat*, uint32_t capability) {
-	std::cerr << "seat capability: " << capability << std::endl;
-      },
-      .name = [](void*, wl_seat*, char const* name) {
-	std::cerr << "seat name: " << name << std::endl;
-      },
+    egl_display_t egl_display(display.get());
+    EGLint attr[] = {
+      EGL_RED_SIZE,   8,
+      EGL_GREEN_SIZE, 8,
+      EGL_BLUE_SIZE,  8,
+      EGL_NONE,
     };
-    wl_seat_add_listener(seat.get(), &seat_listener, nullptr);
-    wl_display_roundtrip(display.get());
 
-    wl_output_listener output_listener = {
-      .geometry = [](void* data, wl_output* output,
-		     int x, int y, int physical_width, int physical_height,
-		     int subpixel, char const* make, char const* model, int transform)
-      {
-	std::cerr << "geometry: ";
-	std::cerr << x << ':';
-	std::cerr << y << ':';
-	std::cerr << physical_width << ':';
-	std::cerr << physical_height << ':';
-	std::cerr << subpixel << ':';
-	std::cerr << make << ':';
-	std::cerr << model << ':';
-	std::cerr << transform << std::endl;
-      },
-      .mode = [](void* data, wl_output* output,
-		 uint32_t flags, int width, int height, int refresh)
-      {
-	std::cerr << "mode: ";
-	std::cerr << flags << ':';
-	std::cerr << width << ':';
-	std::cerr << height << ':';
-	std::cerr << refresh << ':';
-      },
-      .done = [](void* data, wl_output* output) {
-	std::cerr << "done." << std::endl;
-      },
-      .scale = [](void* data, wl_output* output, int factor) {
-	std::cerr << "scale: ";
-	std::cerr << factor << std::endl;
-      },
-    };
-    std::cerr << output.get() << std::endl;
-    wl_output_add_listener(output.get(), &output_listener, nullptr);
-    wl_display_roundtrip(display.get());
-
-    Egl egl(display.get());
-    auto egl_window = egl.window(surface.get(), 1920, 1080);
-    auto egl_surface = egl.surface(egl_window.get());
-
-    eglMakeCurrent(egl.display, egl_surface.get(), egl_surface.get(), egl.context);
+    auto egl_config = egl_display.choose_config(attr);
+    egl_context_t egl_context(egl_display, egl_config, EGL_NO_CONTEXT, nullptr);
+    egl_surface_t egl_surface(egl_display, egl_config, window.get(), nullptr);
+    eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
 
     weston_desktop_shell_set_grab_surface(desktop_shell.get(), surface.get());
     weston_desktop_shell_set_background(desktop_shell.get(), output.get(), surface.get());
     weston_desktop_shell_desktop_ready(desktop_shell.get());
 
-    std::system("./sample-client &");
     std::system("weston-terminal &");
+    std::system("./sample-client &");
 
     {
       glClearColor(0.0, 0.0, 0.5, 1.0);
       glClear(GL_COLOR_BUFFER_BIT);
-      eglSwapBuffers(egl.display, egl_surface.get());
+      eglSwapBuffers(egl_display, egl_surface);
     }
 
     while (-1 != wl_display_dispatch(display.get()));
 
-    result = 0;
+    process_result = 0;
 
     std::cerr << "[leave] shell client" << std::endl;
   }
@@ -103,5 +65,5 @@ int main() {
     std::cerr << ex.what() << std::endl;
   }
 
-  return result;
+  return process_result;
 }

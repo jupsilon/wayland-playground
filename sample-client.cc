@@ -17,34 +17,33 @@ int main() {
     auto shell      = global_bind<wl_shell>     (display.get(), 1);
 
     auto surface = attach_unique(wl_compositor_create_surface(compositor.get()));
+    auto window = attach_unique(wl_egl_window_create(surface.get(), 640, 480),
+				wl_egl_window_destroy);
 
-    {
     egl_display_t egl_display(display.get());
-    std::cerr << egl_display << std::endl;
-
-    auto config = egl_display_choose_config(egl_display.get(),
-					    utilities::array<EGLint>(EGL_RED_SIZE,   8,
-								     EGL_GREEN_SIZE, 8,
-								     EGL_BLUE_SIZE,  8,
-								     // EGL_ALPHA_SIZE, 8,
-								     EGL_NONE));
-    dump(std::cerr, egl_display.get(), config);
-
-    }
-
-    Egl egl(display.get());
-    auto egl_surface = egl.add_surface(surface.get(), 320, 240);
-
-    eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+    EGLint attr[] = {
+      EGL_RED_SIZE,   8,
+      EGL_GREEN_SIZE, 8,
+      EGL_BLUE_SIZE,  8,
+      EGL_ALPHA_SIZE, 8,
+      EGL_NONE,
+    };
+    auto egl_config = egl_display.choose_config(attr);
+    egl_context_t egl_context(egl_display, egl_config, EGL_NO_CONTEXT, nullptr);
+    egl_surface_t egl_surface(egl_display, egl_config, window.get(), nullptr);
+    eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
 
     auto shell_surface = attach_unique(wl_shell_get_shell_surface(shell.get(), surface.get()));
     wl_shell_surface_set_toplevel(shell_surface.get());
 
     do {
-      glClearColor(0.0, 0.5, 0.5, 1.0);
+      glClearColor(0.0, 0.0, 1.0, 0.5);
       glClear(GL_COLOR_BUFFER_BIT);
-      eglSwapBuffers(egl.display, egl_surface);
+      eglSwapBuffers(egl_display, egl_surface);
     } while (-1 != wl_display_dispatch(display.get()));
+  }
+  catch (egl_error_t& ex) {
+    std::cerr << "EGL error: " << eglGetError() << ' ' << ex.what() << std::endl;
   }
   catch (std::exception& ex) {
     std::cerr << "exception: " << ex.what() << std::endl;
