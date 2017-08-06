@@ -4,18 +4,19 @@
 
 #include <tuple>
 #include <cstring>
+#include <memory>
 
 #include <wayland-client.h>
 #include "weston-desktop-shell-client.h"
 
-#include "utilities/scoped.hpp"
-
-
-using utilities::scoped;
+template <typename T, typename D>
+inline auto attach_unique(T* ptr, D del) {
+  return std::unique_ptr<T, D>(ptr, del);
+}
 
 template <typename T>
-inline auto scoped(T* p) {
-  return utilities::scoped(p, [](T* p) { wl_proxy_destroy(reinterpret_cast<wl_proxy*>(p)); });
+inline auto attach_unique(T* ptr) {
+  return attach_unique(ptr, [](T* p) { wl_proxy_destroy(reinterpret_cast<wl_proxy*>(p)); });
 }
 
 template <typename T> constexpr wl_interface const* const iface = nullptr;
@@ -30,7 +31,7 @@ inline auto global_bind(wl_display* display, uint32_t version) {
   static_assert(nullptr != iface<T>, "iface not defined");
 
   using userdata_type = std::tuple<T*, uint32_t>;
-  auto registry = scoped(wl_display_get_registry(display));
+  auto registry = attach_unique(wl_display_get_registry(display));
   wl_registry_listener listener = {
     .global = [](void* data,
 		 wl_registry* registry,
@@ -58,10 +59,10 @@ inline auto global_bind(wl_display* display, uint32_t version) {
 
   userdata_type userdata(nullptr, version);
 
-  wl_registry_add_listener(registry, &listener, &userdata);
+  wl_registry_add_listener(registry.get(), &listener, &userdata);
   wl_display_roundtrip(display);
 
-  return scoped(std::get<0>(userdata));
+  return attach_unique(std::get<0>(userdata));
 }
 
 #endif/*INCLUDE_WAYLAND_CLIENT_HELPER_HPP_52436FEF_3A50_44D8_991D_F2E0525AB182*/

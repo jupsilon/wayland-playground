@@ -18,14 +18,14 @@ int main() {
   try {
     std::cerr << "[enter] shell client" << std::endl;
 
-    auto display = scoped(wl_display_connect(nullptr), wl_display_disconnect);
+    auto display = attach_unique(wl_display_connect(nullptr), wl_display_disconnect);
 
-    auto compositor    = global_bind<wl_compositor>       (display, 4);
-    auto seat          = global_bind<wl_seat>             (display, 1);
-    auto output        = global_bind<wl_output>           (display, 1);
-    auto desktop_shell = global_bind<weston_desktop_shell>(display, 1);
+    auto compositor    = global_bind<wl_compositor>       (display.get(), 4);
+    auto seat          = global_bind<wl_seat>             (display.get(), 1);
+    auto output        = global_bind<wl_output>           (display.get(), 1);
+    auto desktop_shell = global_bind<weston_desktop_shell>(display.get(), 1);
 
-    auto surface       = scoped(wl_compositor_create_surface(compositor));
+    auto surface       = attach_unique(wl_compositor_create_surface(compositor.get()));
 
     wl_seat_listener seat_listener = {
       .capabilities = [](void*, wl_seat*, uint32_t capability) {
@@ -35,8 +35,8 @@ int main() {
 	std::cerr << "seat name: " << name << std::endl;
       },
     };
-    wl_seat_add_listener(seat, &seat_listener, nullptr);
-    wl_display_roundtrip(display);
+    wl_seat_add_listener(seat.get(), &seat_listener, nullptr);
+    wl_display_roundtrip(display.get());
 
     wl_output_listener output_listener = {
       .geometry = [](void* data, wl_output* output,
@@ -70,19 +70,19 @@ int main() {
 	std::cerr << factor << std::endl;
       },
     };
-    std::cerr << output << std::endl;
-    wl_output_add_listener(output, &output_listener, nullptr);
-    wl_display_roundtrip(display);
+    std::cerr << output.get() << std::endl;
+    wl_output_add_listener(output.get(), &output_listener, nullptr);
+    wl_display_roundtrip(display.get());
 
-    Egl egl(display);
-    auto egl_window = egl.window(surface, 1920, 1080);
-    auto egl_surface = egl.surface(egl_window);
+    Egl egl(display.get());
+    auto egl_window = egl.window(surface.get(), 1920, 1080);
+    auto egl_surface = egl.surface(egl_window.get());
 
-    eglMakeCurrent(egl.display, egl_surface, egl_surface, egl.context);
+    eglMakeCurrent(egl.display, egl_surface.get(), egl_surface.get(), egl.context);
 
-    weston_desktop_shell_set_grab_surface(desktop_shell, surface);
-    weston_desktop_shell_set_background(desktop_shell, output, surface);
-    weston_desktop_shell_desktop_ready(desktop_shell);
+    weston_desktop_shell_set_grab_surface(desktop_shell.get(), surface.get());
+    weston_desktop_shell_set_background(desktop_shell.get(), output.get(), surface.get());
+    weston_desktop_shell_desktop_ready(desktop_shell.get());
 
     std::system("./sample-client &");
     std::system("weston-terminal &");
@@ -90,10 +90,10 @@ int main() {
     {
       glClearColor(0.0, 0.0, 0.5, 1.0);
       glClear(GL_COLOR_BUFFER_BIT);
-      eglSwapBuffers(egl.display, egl_surface);
+      eglSwapBuffers(egl.display, egl_surface.get());
     }
 
-    while (-1 != wl_display_dispatch(display));
+    while (-1 != wl_display_dispatch(display.get()));
 
     result = 0;
 
