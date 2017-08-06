@@ -49,5 +49,5 @@ add_custom_command(
 
 add_custom_target(run
   COMMAND weston
-  DEPENDS weston-shell-client
+  DEPENDS weston-shell-client sample-client
   )
