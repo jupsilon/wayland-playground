@@ -21,6 +21,7 @@ inline auto attach_unique(T* ptr) {
 
 template <typename T> constexpr wl_interface const* const iface = nullptr;
 template <> constexpr wl_interface const* const iface<wl_compositor>        = &wl_compositor_interface;
+template <> constexpr wl_interface const* const iface<wl_subcompositor>     = &wl_subcompositor_interface;
 template <> constexpr wl_interface const* const iface<wl_shell>             = &wl_shell_interface;
 template <> constexpr wl_interface const* const iface<wl_seat>              = &wl_seat_interface;
 template <> constexpr wl_interface const* const iface<wl_output>            = &wl_output_interface;
