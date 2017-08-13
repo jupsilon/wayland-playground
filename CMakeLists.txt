@@ -1,9 +1,9 @@
 
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS
-  "-std=c++1z -Wall -g3"
-  )
+set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+set(CMAKE_CXX_FLAGS "-std=c++1z -Wall -g3")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(SCANNER
   "wayland-scanner"
